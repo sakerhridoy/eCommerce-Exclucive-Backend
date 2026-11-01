@@ -1,10 +1,10 @@
 import SSLCommerzPayment from 'sslcommerz-lts';
 import { orderRepository } from '../repositories/index.js';
+import { config } from '../config/index.js';
 
-
-const store_id = process.env.STORE_ID || 'testbox';
-const store_passwd = process.env.STORE_PASSWD || 'testbox@ssl';
-const is_live = process.env.NODE_ENV === 'production';
+const store_id = config.sslcommerz.storeId || 'testbox';
+const store_passwd = config.sslcommerz.storePassword || 'testbox@ssl';
+const is_live = !config.sslcommerz.sandbox;
 
 export const initPayment = async (req, res) => {
   try {
@@ -18,8 +18,7 @@ export const initPayment = async (req, res) => {
         .json({ success: false, message: 'Order not found' });
     }
 
-    const backendUrl =
-      process.env.API_BASE_URL || 'http://localhost:5000/api/v1';
+    const backendUrl = config.apiBaseUrl;
 
     const data = {
       total_amount: order.total,
@@ -92,7 +91,7 @@ export const paymentSuccess = async (req, res) => {
     orderStatus: 'PROCESSING',
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = config.frontendUrl;
   res.redirect(`${frontendUrl}/order-success?orderId=${tran_id}`);
 };
 
@@ -103,7 +102,7 @@ export const paymentFail = async (req, res) => {
     paymentStatus: 'FAILED',
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = config.frontendUrl;
   res.redirect(`${frontendUrl}/order-fail`);
 };
 
@@ -114,6 +113,31 @@ export const paymentCancel = async (req, res) => {
     paymentStatus: 'CANCELLED',
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = config.frontendUrl;
   res.redirect(`${frontendUrl}/order-fail`);
+};
+
+export const paymentIpn = async (req, res) => {
+  try {
+    const { tran_id, status } = req.body;
+
+    if (!tran_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Invalid IPN payload' });
+    }
+
+    const isSuccessful =
+      status === 'VALID' || status === 'VALIDATED' || status === 'SUCCESS';
+
+    await orderRepository.findByIdAndUpdate(tran_id, {
+      paymentStatus: isSuccessful ? 'PAID' : 'FAILED',
+      ...(isSuccessful ? { orderStatus: 'PROCESSING' } : {}),
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('SSLCommerz IPN Error:', error);
+    return res.status(200).json({ success: false });
+  }
 };

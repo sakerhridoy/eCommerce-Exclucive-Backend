@@ -22,10 +22,23 @@ const getSecret = (name, fallback) => {
   return value || fallback;
 };
 
+const port = toNumber(process.env.PORT, 5000);
+
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const frontendUrl =
+  process.env.FRONTEND_URL || corsOrigins[0] || 'http://localhost:5173';
+
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: toNumber(process.env.PORT, 5000),
+  port,
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/singlev',
+
+  apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${port}/api/v1`,
+  frontendUrl,
 
   jwt: {
     accessSecret: getSecret('JWT_ACCESS_SECRET', 'your-access-secret-key'),
@@ -65,7 +78,8 @@ export const config = {
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origins: corsOrigins,
+    origin: corsOrigins[0] || 'http://localhost:5173',
   },
 
   cookie: {

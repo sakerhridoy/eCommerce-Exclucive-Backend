@@ -26,7 +26,7 @@ export const register = async data => {
   });
 
   try {
-    const verificationLink = `${config.cors.origin}/verifyemail/${verificationToken}`;
+    const verificationLink = `${config.frontendUrl}/verifyemail/${verificationToken}`;
     await sendEmail({
       to: user.email,
       ...emailTemplates.emailVerification(user, verificationLink),
@@ -86,8 +86,8 @@ export const googleLogin = async googleToken => {
     user = await userRepository.create({
       name: googleUser.name,
       email: googleUser.email,
-      password: Math.random().toString(36).slice(-8) + 'Aa1@', 
-      isVerified: true, 
+      password: Math.random().toString(36).slice(-8) + 'Aa1@',
+      isVerified: true,
     });
   }
 
@@ -147,7 +147,7 @@ export const forgotPassword = async email => {
   }
 
   const resetToken = generateAccessToken({ id: user._id });
-  const resetLink = `${config.cors.origin}/reset-password?token=${resetToken}`;
+  const resetLink = `${config.frontendUrl}/reset-password?token=${resetToken}`;
 
   try {
     await sendEmail({

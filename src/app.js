@@ -33,12 +33,15 @@ app.use(
 
 app.use(
   cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      if (!origin || config.cors.origins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
   }),
 );
-
-app.use('/uploads', express.static('uploads'));
 
 app.use(
   '/uploads',
@@ -72,7 +75,6 @@ app.use(xss());
 app.use(compression());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 
 app.use('/api/v1', routes);
 app.use('/api/v1/payments', paymentRoutes);
