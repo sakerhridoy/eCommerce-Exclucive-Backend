@@ -2,10 +2,16 @@ import nodemailer from 'nodemailer';
 import { config } from '../../config/index.js';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: config.email.user,
     pass: config.email.pass,
+  },
+
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
@@ -19,9 +25,11 @@ export const sendEmail = async options => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`Email successfully sent to ${options.to}`); 
+    console.log(`Email successfully sent to ${options.to}`);
   } catch (error) {
-    console.error('SMTP ERROR DETAILS:', error);
-    throw new Error('Failed to send email');
+    console.error('SMTP ERROR DETAILS:', error.message);
+    console.log(
+      'Email delivery failed, but continuing with the order process...',
+    );
   }
 };
