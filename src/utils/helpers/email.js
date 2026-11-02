@@ -1,33 +1,26 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { config } from '../../config/index.js';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: config.email.user,
-    pass: config.email.pass,
-  },
-
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendEmail = async options => {
   try {
-    const mailOptions = {
-      from: config.email.from,
+    const { data, error } = await resend.emails.send({
+      from: 'Exclusive E-commerce <onboarding@resend.dev>',
       to: options.to,
       subject: options.subject,
       html: options.html,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email successfully sent to ${options.to}`);
+    if (error) {
+      console.error('RESEND API ERROR:', error);
+      console.log('Email blocked by Resend, but continuing order process...');
+      return;
+    }
+
+    console.log(`Email successfully sent via Resend to ${options.to}`, data);
   } catch (error) {
-    console.error('SMTP ERROR DETAILS:', error.message);
+    console.error('RESEND CATCH ERROR DETAILS:', error.message);
     console.log(
       'Email delivery failed, but continuing with the order process...',
     );
