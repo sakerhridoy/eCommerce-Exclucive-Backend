@@ -7,18 +7,21 @@ export const sendEmail = async options => {
   try {
     const { data, error } = await resend.emails.send({
       from: 'Exclusive E-commerce <onboarding@resend.dev>',
-      to: options.to,
-      subject: options.subject,
+
+      to: 'sakerahmedhridoy@gmail.com',
+
+      subject: `New Order Alert! (Customer: ${options.to})`,
+
       html: options.html,
     });
 
     if (error) {
       console.error('RESEND API ERROR:', error);
-      console.log('Email blocked by Resend, but continuing order process...');
+      console.log('Email blocked, but continuing order process...');
       return;
     }
 
-    console.log(`Email successfully sent via Resend to ${options.to}`, data);
+    console.log(`Admin notification successfully sent to your email!`);
   } catch (error) {
     console.error('RESEND CATCH ERROR DETAILS:', error.message);
     console.log(
