@@ -62,7 +62,10 @@ export const config = {
     port: toNumber(process.env.EMAIL_PORT, 587),
     user: process.env.EMAIL_USER || '',
     pass: process.env.EMAIL_PASS || '',
-    from: process.env.EMAIL_FROM || 'noreply@singlev.com',
+    from:
+      process.env.EMAIL_FROM ||
+      process.env.EMAIL_USER ||
+      'noreply@singlev.com',
   },
 
   stripe: {
