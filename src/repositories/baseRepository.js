@@ -61,6 +61,10 @@ export class BaseRepository {
     return await this.model.findByIdAndDelete(id);
   }
 
+  async updateMany(filter, data, options = {}) {
+    return await this.model.updateMany(filter, data, options);
+  }
+
   async countDocuments(query = {}) {
     return await this.model.countDocuments(query);
   }

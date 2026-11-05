@@ -5,7 +5,10 @@ import {
   generateAccessToken,
   generateRefreshToken,
   sendEmail,
+  sendAdminAlert,
+  deleteFromCloudinary,
 } from '../utils/index.js';
+import { uploadOnCloudinary } from '../utils/constants/cloudinary.js';
 import { emailTemplates } from './emailTemplatesService.js';
 import { config } from '../config/index.js';
 import { verifyAccessToken, verifyRefreshToken } from '../utils/index.js';
@@ -31,6 +34,9 @@ export const register = async data => {
       to: user.email,
       ...emailTemplates.emailVerification(user, verificationLink),
     });
+
+    // Notify the store owner about the new customer.
+    await sendAdminAlert(emailTemplates.adminNewUser(user));
   } catch (error) {
     console.error('Failed to send email verification:', error);
   }
@@ -209,4 +215,130 @@ export const updateProfile = async (userId, data) => {
     throw new AppError('User not found', 404);
   }
   return user;
+};
+
+export const updateAvatar = async (userId, file) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!file) {
+    throw new AppError('Avatar image is required', 400);
+  }
+
+  const uploaded = await uploadOnCloudinary(file.path);
+  if (!uploaded?.secure_url) {
+    throw new AppError('Failed to upload avatar image', 500);
+  }
+
+  const previousPublicId = user.avatar?.publicId;
+
+  user.avatar = {
+    publicId: uploaded.public_id,
+    url: uploaded.secure_url,
+  };
+  await user.save();
+
+  if (previousPublicId) {
+    try {
+      await deleteFromCloudinary(previousPublicId);
+    } catch (error) {
+      console.error('Failed to delete previous avatar:', error);
+    }
+  }
+
+  return user;
+};
+
+export const getAddresses = async userId => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+  return user.addresses;
+};
+
+export const addAddress = async (userId, data) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const makeDefault = data.isDefault || user.addresses.length === 0;
+  if (makeDefault) {
+    user.addresses.forEach(address => {
+      address.isDefault = false;
+    });
+  }
+
+  user.addresses.push({ ...data, isDefault: makeDefault });
+  await user.save();
+
+  return user.addresses;
+};
+
+export const updateAddress = async (userId, addressId, data) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const address = user.addresses.id(addressId);
+  if (!address) {
+    throw new AppError('Address not found', 404);
+  }
+
+  if (data.isDefault) {
+    user.addresses.forEach(item => {
+      item.isDefault = item._id.equals(address._id);
+    });
+  }
+
+  Object.assign(address, data);
+  await user.save();
+
+  return user.addresses;
+};
+
+export const deleteAddress = async (userId, addressId) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const address = user.addresses.id(addressId);
+  if (!address) {
+    throw new AppError('Address not found', 404);
+  }
+
+  const wasDefault = address.isDefault;
+  address.deleteOne();
+
+  if (wasDefault && user.addresses.length > 0) {
+    user.addresses[0].isDefault = true;
+  }
+
+  await user.save();
+
+  return user.addresses;
+};
+
+export const setDefaultAddress = async (userId, addressId) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const address = user.addresses.id(addressId);
+  if (!address) {
+    throw new AppError('Address not found', 404);
+  }
+
+  user.addresses.forEach(item => {
+    item.isDefault = item._id.equals(address._id);
+  });
+  await user.save();
+
+  return user.addresses;
 };

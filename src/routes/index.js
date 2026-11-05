@@ -12,6 +12,7 @@ import bannerRoutes from './bannerRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import homeRoutes from './homeRoutes.js';
+import adminUserRoutes from './adminUserRoutes.js';
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.use('/reviews', reviewRoutes);
 router.use('/banners', bannerRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/admin/users', adminUserRoutes);
 
 export default router;

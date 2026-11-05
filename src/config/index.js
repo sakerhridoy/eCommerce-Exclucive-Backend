@@ -57,6 +57,18 @@ export const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET || '',
   },
 
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+  },
+
+  store: {
+    name: process.env.STORE_NAME || 'Exclusive',
+    // Exact contact page the AI must hand over when it cannot answer.
+    contactUrl:
+      process.env.SUPPORT_CONTACT_URL || `${frontendUrl}/contact`,
+  },
+
   email: {
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: toNumber(process.env.EMAIL_PORT, 587),
@@ -66,6 +78,26 @@ export const config = {
       process.env.EMAIL_FROM ||
       process.env.EMAIL_USER ||
       'noreply@singlev.com',
+
+    // Resend API (HTTPS based — works on Render where SMTP ports are blocked).
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    // Verified sender. Until a domain is verified only onboarding@resend.dev
+    // works, and it can only deliver to the Resend account owner's address.
+    resendFrom:
+      process.env.RESEND_FROM ||
+      'Exclusive E-commerce <onboarding@resend.dev>',
+    // Inbox that receives admin alerts (and, in notify_only mode, everything).
+    adminEmail:
+      process.env.ADMIN_EMAIL ||
+      process.env.EMAIL_FROM ||
+      process.env.EMAIL_USER ||
+      'sakerahmedhridoy@gmail.com',
+    // 'live'         → deliver to the real recipient (needs a verified domain)
+    // 'notify_only'  → redirect every email to adminEmail (safe default for
+    //                  an unverified Resend domain / sandbox)
+    mode: (process.env.EMAIL_MODE || 'notify_only').toLowerCase(),
+    // Orders whose total reaches this amount raise a "big order" alert.
+    bigOrderThreshold: toNumber(process.env.BIG_ORDER_ALERT_AMOUNT, 500),
   },
 
   stripe: {

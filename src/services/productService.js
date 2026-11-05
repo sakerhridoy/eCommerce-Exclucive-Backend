@@ -10,7 +10,23 @@ import {
   PRODUCT_STATUS,
   getPagination,
   getPaginationMeta,
+  buildSort,
+  escapeRegex,
+  buildDateRange,
 } from '../utils/index.js';
+
+// Columns admins are allowed to sort the product table by.
+const ADMIN_PRODUCT_SORT_FIELDS = [
+  'title',
+  'price',
+  'discountPrice',
+  'stock',
+  'sold',
+  'status',
+  'featured',
+  'createdAt',
+  'updatedAt',
+];
 
 const resolveCategory = async categoryInput => {
   if (!categoryInput) return null;
@@ -152,6 +168,108 @@ export const getProducts = async query => {
     products,
     meta,
   };
+};
+
+// ================= ADMIN LISTING & BULK =================
+export const getAdminProducts = async query => {
+  const { page, limit, skip } = getPagination(query);
+  const filter = {};
+
+  const status = String(query.status || '')
+    .toUpperCase()
+    .trim();
+  if (status && status !== 'ALL') {
+    filter.status = status.toLowerCase();
+  } else {
+    // Default: everything except already soft-deleted products.
+    filter.status = { $ne: PRODUCT_STATUS.DELETED };
+  }
+
+  if (query.category) {
+    const categoryDoc = await resolveCategory(query.category);
+    if (categoryDoc) {
+      filter.category = categoryDoc._id;
+    } else {
+      return { products: [], meta: getPaginationMeta(0, page, limit) };
+    }
+  }
+
+  if (query.brand) {
+    filter.brand = query.brand;
+  }
+
+  if (query.featured !== undefined && query.featured !== '') {
+    filter.featured = query.featured === 'true';
+  }
+
+  if (query.stockStatus) {
+    const stockStatus = String(query.stockStatus).toUpperCase();
+    if (stockStatus === 'OUT') filter.stock = { $lte: 0 };
+    else if (stockStatus === 'LOW') filter.stock = { $gt: 0, $lte: 10 };
+    else if (stockStatus === 'IN') filter.stock = { $gt: 10 };
+  }
+
+  if (query.search) {
+    const rx = new RegExp(escapeRegex(query.search.trim()), 'i');
+    filter.$or = [{ title: rx }, { sku: rx }, { description: rx }];
+  }
+
+  if (query.minPrice || query.maxPrice) {
+    filter.price = filter.price || {};
+    if (query.minPrice) filter.price.$gte = Number(query.minPrice);
+    if (query.maxPrice) filter.price.$lte = Number(query.maxPrice);
+  }
+
+  const createdAt = buildDateRange(query.createdFrom, query.createdTo);
+  if (createdAt) filter.createdAt = createdAt;
+
+  const sort = buildSort(query.sort, ADMIN_PRODUCT_SORT_FIELDS, {
+    createdAt: -1,
+  });
+
+  const products = await productRepository.find(filter, {
+    skip,
+    limit,
+    sort,
+    populate: ['category', 'brand'],
+  });
+  const total = await productRepository.countDocuments(filter);
+
+  return { products, meta: getPaginationMeta(total, page, limit) };
+};
+
+export const bulkUpdateProducts = async (ids = [], payload = {}) => {
+  const validIds = (Array.isArray(ids) ? ids : []).filter(id =>
+    mongoose.Types.ObjectId.isValid(id),
+  );
+  if (validIds.length === 0) {
+    throw new AppError('No products selected', 400);
+  }
+
+  const { action } = payload;
+
+  if (action === 'delete') {
+    const result = await productRepository.updateMany(
+      { _id: { $in: validIds } },
+      { status: PRODUCT_STATUS.DELETED },
+    );
+    return { modified: result.modifiedCount };
+  }
+
+  const update = {};
+  if (payload.status) update.status = String(payload.status).toLowerCase();
+  if (payload.featured !== undefined)
+    update.featured = Boolean(payload.featured);
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError('Nothing to update', 400);
+  }
+
+  const result = await productRepository.updateMany(
+    { _id: { $in: validIds } },
+    update,
+  );
+  return { modified: result.modifiedCount };
 };
 
 export const getProductById = async id => {

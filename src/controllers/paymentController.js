@@ -1,5 +1,7 @@
 import SSLCommerzPayment from 'sslcommerz-lts';
 import { orderRepository } from '../repositories/index.js';
+import * as orderService from '../services/index.js';
+import { PAYMENT_STATUS, ORDER_STATUS } from '../utils/index.js';
 import { config } from '../config/index.js';
 
 const store_id = config.sslcommerz.storeId || 'testbox';
@@ -87,8 +89,8 @@ export const paymentSuccess = async (req, res) => {
   const { tran_id } = req.params;
 
   await orderRepository.findByIdAndUpdate(tran_id, {
-    paymentStatus: 'PAID',
-    orderStatus: 'PROCESSING',
+    paymentStatus: PAYMENT_STATUS.PAID,
+    orderStatus: ORDER_STATUS.PROCESSING,
   });
 
   const frontendUrl = config.frontendUrl;
@@ -98,9 +100,12 @@ export const paymentSuccess = async (req, res) => {
 export const paymentFail = async (req, res) => {
   const { tran_id } = req.params;
 
-  await orderRepository.findByIdAndUpdate(tran_id, {
-    paymentStatus: 'FAILED',
-  });
+  try {
+    // Mark the order cancelled and return reserved stock to inventory.
+    await orderService.handlePaymentFailure(tran_id, PAYMENT_STATUS.FAILED);
+  } catch (error) {
+    console.error('Payment fail handler error:', error);
+  }
 
   const frontendUrl = config.frontendUrl;
   res.redirect(`${frontendUrl}/order-fail`);
@@ -109,9 +114,11 @@ export const paymentFail = async (req, res) => {
 export const paymentCancel = async (req, res) => {
   const { tran_id } = req.params;
 
-  await orderRepository.findByIdAndUpdate(tran_id, {
-    paymentStatus: 'CANCELLED',
-  });
+  try {
+    await orderService.handlePaymentFailure(tran_id, PAYMENT_STATUS.FAILED);
+  } catch (error) {
+    console.error('Payment cancel handler error:', error);
+  }
 
   const frontendUrl = config.frontendUrl;
   res.redirect(`${frontendUrl}/order-fail`);
@@ -130,10 +137,15 @@ export const paymentIpn = async (req, res) => {
     const isSuccessful =
       status === 'VALID' || status === 'VALIDATED' || status === 'SUCCESS';
 
-    await orderRepository.findByIdAndUpdate(tran_id, {
-      paymentStatus: isSuccessful ? 'PAID' : 'FAILED',
-      ...(isSuccessful ? { orderStatus: 'PROCESSING' } : {}),
-    });
+    if (isSuccessful) {
+      await orderRepository.findByIdAndUpdate(tran_id, {
+        paymentStatus: PAYMENT_STATUS.PAID,
+        orderStatus: ORDER_STATUS.PROCESSING,
+      });
+    } else {
+      // Failed IPN => restore stock and cancel the order.
+      await orderService.handlePaymentFailure(tran_id, PAYMENT_STATUS.FAILED);
+    }
 
     return res.status(200).json({ success: true });
   } catch (error) {

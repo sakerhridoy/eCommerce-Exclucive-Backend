@@ -1,6 +1,7 @@
 import { asyncHandler, sendResponse } from '../utils/index.js';
 import * as orderService from '../services/index.js';
 import { ROLES } from '../utils/index.js';
+import { Notification } from '../models/Notification.js';
 
 export const placeOrder = asyncHandler(async (req, res) => {
   if (req.body.items && Array.isArray(req.body.items)) {
@@ -18,6 +19,23 @@ export const placeOrder = asyncHandler(async (req, res) => {
   }
 
   const order = await orderService.placeOrder(req.user._id, req.body);
+
+  // ================= Trigger Notification for Admin =================
+  try {
+    const orderIdStr = order._id.toString();
+    const orderNumber = order.orderNumber || orderIdStr.slice(-6).toUpperCase();
+
+    await Notification.create({
+      title: 'New Order Received',
+      message: `Order #${orderNumber} has been placed successfully. Amount: ৳${order.total || 0}`,
+      type: 'ORDER',
+      user: req.user._id,
+      orderId: order._id,
+      read: false,
+    });
+  } catch (notifError) {
+    console.error('Failed to create order notification:', notifError);
+  }
 
   sendResponse(res, {
     message: 'Order placed successfully',
@@ -107,4 +125,37 @@ export const getAllOrdersAdmin = asyncHandler(async (req, res) => {
     data: result.orders,
     meta: result.meta,
   });
+});
+
+// ================= Admin: bulk actions =================
+export const bulkUpdateOrderStatus = asyncHandler(async (req, res) => {
+  const { ids, orderStatus } = req.body;
+  const result = await orderService.bulkUpdateOrderStatus(ids, orderStatus);
+  sendResponse(res, {
+    message: `${result.modified} order(s) updated`,
+    data: result,
+  });
+});
+
+export const bulkUpdatePaymentStatus = asyncHandler(async (req, res) => {
+  const { ids, paymentStatus } = req.body;
+  const result = await orderService.bulkUpdatePaymentStatus(ids, paymentStatus);
+  sendResponse(res, {
+    message: `${result.modified} order(s) updated`,
+    data: result,
+  });
+});
+
+export const exportOrdersExcel = asyncHandler(async (req, res) => {
+  const excelBuffer = await orderService.exportOrdersExcelService();
+
+  res.setHeader(
+    'Content-Disposition',
+    'attachment; filename="Admin_Orders_Report.xlsx"',
+  );
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  res.send(excelBuffer);
 });

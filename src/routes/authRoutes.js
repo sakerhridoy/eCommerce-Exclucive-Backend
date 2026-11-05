@@ -1,6 +1,6 @@
 import express from 'express';
 import * as authController from '../controllers/index.js';
-import { authenticate } from '../middlewares/index.js';
+import { authenticate, upload, authLimiter } from '../middlewares/index.js';
 import { validate } from '../middlewares/index.js';
 import {
   registerSchema,
@@ -9,6 +9,8 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   updateProfileSchema,
+  addressSchema,
+  updateAddressSchema,
 } from '../validators/index.js';
 
 const router = express.Router();
@@ -53,7 +55,12 @@ const router = express.Router();
  *       400:
  *         description: Validation error
  */
-router.post('/register', validate(registerSchema), authController.register);
+router.post(
+  '/register',
+  authLimiter,
+  validate(registerSchema),
+  authController.register,
+);
 
 /**
  * @swagger
@@ -84,7 +91,7 @@ router.post('/register', validate(registerSchema), authController.register);
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(loginSchema), authController.login);
+router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.get('/verify-email/:token', authController.verifyEmail);
 
 /**
@@ -145,6 +152,7 @@ router.post('/logout', authenticate, authController.logout);
  */
 router.post(
   '/forgot-password',
+  authLimiter,
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
@@ -183,6 +191,7 @@ router.post(
  */
 router.post(
   '/reset-password/:token',
+  authLimiter,
   validate(resetPasswordSchema),
   authController.resetPassword,
 );
@@ -279,6 +288,149 @@ router.put(
 
 /**
  * @swagger
+ * /auth/avatar:
+ *   post:
+ *     summary: Update logged in user avatar
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar updated successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  '/avatar',
+  authenticate,
+  upload.single('avatar'),
+  authController.updateAvatar,
+);
+
+/**
+ * @swagger
+ * /auth/addresses:
+ *   get:
+ *     summary: Get logged in user addresses
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Addresses fetched successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/addresses', authenticate, authController.getAddresses);
+
+/**
+ * @swagger
+ * /auth/addresses:
+ *   post:
+ *     summary: Add a new address
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Address added successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  '/addresses',
+  authenticate,
+  validate(addressSchema),
+  authController.addAddress,
+);
+
+/**
+ * @swagger
+ * /auth/addresses/{id}:
+ *   put:
+ *     summary: Update an address
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Address updated successfully
+ *       404:
+ *         description: Address not found
+ */
+router.put(
+  '/addresses/:id',
+  authenticate,
+  validate(updateAddressSchema),
+  authController.updateAddress,
+);
+
+/**
+ * @swagger
+ * /auth/addresses/{id}:
+ *   delete:
+ *     summary: Delete an address
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Address deleted successfully
+ *       404:
+ *         description: Address not found
+ */
+router.delete('/addresses/:id', authenticate, authController.deleteAddress);
+
+/**
+ * @swagger
+ * /auth/addresses/{id}/default:
+ *   patch:
+ *     summary: Set an address as default
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Default address updated successfully
+ *       404:
+ *         description: Address not found
+ */
+router.patch(
+  '/addresses/:id/default',
+  authenticate,
+  authController.setDefaultAddress,
+);
+
+/**
+ * @swagger
  * /auth/google:
  *   post:
  *     summary: Login/Signup with Google
@@ -303,9 +455,10 @@ router.put(
  *         description: Validation error or invalid Google token
  */
 router.post(
-  '/google', 
-  // validate(googleLoginSchema), 
-  authController.googleLogin
+  '/google',
+  authLimiter,
+  // validate(googleLoginSchema),
+  authController.googleLogin,
 );
 
 export default router;

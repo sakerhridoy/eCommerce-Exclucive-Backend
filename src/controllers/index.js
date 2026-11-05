@@ -10,3 +10,5 @@ export * from './reviewController.js';
 export * from './bannerController.js';
 export * from './notificationController.js';
 export * from './dashboardController.js';
+export * from './websiteSettingsController.js';
+export * from './adminUserController.js';

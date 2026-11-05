@@ -12,13 +12,20 @@ export const getRecentOrders = asyncHandler(async (req, res) => {
 });
 
 export const getTopSellingProducts = asyncHandler(async (req, res) => {
-  const products = await dashboardService.getTopSellingProducts(req.query.limit);
+  const products = await dashboardService.getTopSellingProducts(
+    req.query.limit,
+  );
   sendResponse(res, { data: products });
 });
 
 export const getLowStockProducts = asyncHandler(async (req, res) => {
   const products = await dashboardService.getLowStockProducts(req.query.limit);
   sendResponse(res, { data: products });
+});
+
+export const getInventoryAlerts = asyncHandler(async (req, res) => {
+  const alerts = await dashboardService.getInventoryAlerts(req.query.limit);
+  sendResponse(res, { data: alerts });
 });
 
 export const getCustomersList = asyncHandler(async (req, res) => {

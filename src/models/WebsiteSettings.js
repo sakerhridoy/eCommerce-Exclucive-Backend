@@ -18,6 +18,20 @@ const seoSchema = new mongoose.Schema({
   _id: true
 });
 
+const pageContentSchema = new mongoose.Schema({
+  title: { type: String, trim: true },
+  content: { type: String, default: '' }
+}, {
+  _id: false
+});
+
+const faqSchema = new mongoose.Schema({
+  question: { type: String, required: true, trim: true },
+  answer: { type: String, required: true, trim: true }
+}, {
+  _id: true
+});
+
 const websiteSettingsSchema = new mongoose.Schema({
   logo: {
     publicId: String,
@@ -33,6 +47,15 @@ const websiteSettingsSchema = new mongoose.Schema({
   },
   email: String,
   phone: String,
+  address: { type: String, trim: true },
+  supportHours: {
+    type: String,
+    trim: true,
+    default: 'We are available 24/7, 7 days a week.'
+  },
+  privacyPolicy: pageContentSchema,
+  termsOfUse: pageContentSchema,
+  faqs: [faqSchema],
   socialLinks: socialLinksSchema,
   footer: String,
   seo: seoSchema

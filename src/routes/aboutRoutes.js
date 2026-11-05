@@ -3,8 +3,8 @@ import {
   getAboutData,
   updateAboutData,
 } from '../controllers/aboutController.js';
-import { authenticate, authorize } from '../middlewares/index.js';
-import { ROLES } from '../utils/index.js';
+import { authenticate, requirePermission } from '../middlewares/index.js';
+import { PERMISSIONS } from '../utils/index.js';
 import { upload } from '../middlewares/upload.js';
 
 const router = express.Router();
@@ -14,7 +14,7 @@ router.get('/', getAboutData);
 router.put(
   '/',
   authenticate,
-  authorize(ROLES.ADMIN),
+  requirePermission(PERMISSIONS.CONTENT_MANAGE),
   upload.single('image'),
   updateAboutData,
 );

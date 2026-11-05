@@ -6,17 +6,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config/index.js';
 import { swaggerSpec } from './config/swagger.js';
-import { errorHandler } from './middlewares/index.js';
+import { errorHandler, apiLimiter } from './middlewares/index.js';
 import routes from './routes/index.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import aboutRoutes from './routes/aboutRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import websiteSettingsRoutes from './routes/websiteSettingsRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -40,6 +41,10 @@ app.use(
       return callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400,
+    optionsSuccessStatus: 204,
   }),
 );
 
@@ -55,15 +60,7 @@ app.use(
 
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 
-const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
-  message: 'Too many requests from this IP, please try again later.',
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-});
-
-app.use('/api', limiter);
+app.use('/api', apiLimiter);
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
@@ -81,7 +78,8 @@ app.use('/api/v1/payments', paymentRoutes);
 
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/about', aboutRoutes);
-
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/settings', websiteSettingsRoutes);
 app.all('*', (req, res, next) => {
   res.status(404).json({
     success: false,

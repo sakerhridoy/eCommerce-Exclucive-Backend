@@ -80,6 +80,36 @@ export const updateProfile = asyncHandler(async (req, res) => {
   sendResponse(res, { message: 'Profile updated successfully', data: user });
 });
 
+export const updateAvatar = asyncHandler(async (req, res) => {
+  const user = await authService.updateAvatar(req.user._id, req.file);
+  sendResponse(res, { message: 'Avatar updated successfully', data: user });
+});
+
+export const getAddresses = asyncHandler(async (req, res) => {
+  const addresses = await authService.getAddresses(req.user._id);
+  sendResponse(res, { message: 'Addresses fetched successfully', data: addresses });
+});
+
+export const addAddress = asyncHandler(async (req, res) => {
+  const addresses = await authService.addAddress(req.user._id, req.body);
+  sendResponse(res, { message: 'Address added successfully', data: addresses, statusCode: 201 });
+});
+
+export const updateAddress = asyncHandler(async (req, res) => {
+  const addresses = await authService.updateAddress(req.user._id, req.params.id, req.body);
+  sendResponse(res, { message: 'Address updated successfully', data: addresses });
+});
+
+export const deleteAddress = asyncHandler(async (req, res) => {
+  const addresses = await authService.deleteAddress(req.user._id, req.params.id);
+  sendResponse(res, { message: 'Address deleted successfully', data: addresses });
+});
+
+export const setDefaultAddress = asyncHandler(async (req, res) => {
+  const addresses = await authService.setDefaultAddress(req.user._id, req.params.id);
+  sendResponse(res, { message: 'Default address updated successfully', data: addresses });
+});
+
 // ================= Google Login Controller =================
 export const googleLogin = asyncHandler(async (req, res) => {
   const result = await authService.googleLogin(req.body.token);

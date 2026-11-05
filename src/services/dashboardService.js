@@ -7,7 +7,13 @@ import {
   couponRepository,
   reviewRepository,
 } from '../repositories/index.js';
-import { ORDER_STATUS, PAYMENT_STATUS, ROLES } from '../utils/index.js';
+import {
+  ORDER_STATUS,
+  PAYMENT_STATUS,
+  PRODUCT_STATUS,
+  ROLES,
+} from '../utils/index.js';
+import { LOW_STOCK_THRESHOLD } from './inventoryService.js';
 
 export const getDashboardStats = async () => {
   const [
@@ -20,7 +26,8 @@ export const getDashboardStats = async () => {
     totalReviews,
     pendingOrders,
     completedOrders,
-    totalRevenue,
+    revenueResult,
+    salesResult,
   ] = await Promise.all([
     userRepository.countDocuments(),
     productRepository.countDocuments(),
@@ -35,9 +42,16 @@ export const getDashboardStats = async () => {
       { $match: { paymentStatus: PAYMENT_STATUS.PAID } },
       { $group: { _id: null, total: { $sum: '$total' } } },
     ]),
+    // Total Sales = value of every order that was not cancelled, regardless
+    // of whether the payment has been collected yet.
+    orderRepository.aggregate([
+      { $match: { orderStatus: { $ne: ORDER_STATUS.CANCELLED } } },
+      { $group: { _id: null, total: { $sum: '$total' } } },
+    ]),
   ]);
 
-  const revenue = totalRevenue[0]?.total || 0;
+  const totalRevenue = revenueResult[0]?.total || 0;
+  const totalSales = salesResult[0]?.total || 0;
 
   return {
     totalUsers,
@@ -49,7 +63,8 @@ export const getDashboardStats = async () => {
     totalReviews,
     pendingOrders,
     completedOrders,
-    totalRevenue: revenue,
+    totalSales,
+    totalRevenue,
   };
 };
 
@@ -84,6 +99,44 @@ export const getLowStockProducts = async (limit = 10) => {
       populate: ['category', 'brand'],
     },
   );
+};
+
+// Low + out-of-stock products for the admin inventory alert panel.
+export const getInventoryAlerts = async (limit = 20) => {
+  const notDeleted = { status: { $ne: PRODUCT_STATUS.DELETED } };
+
+  const [lowStock, outOfStock, lowStockCount, outOfStockCount] =
+    await Promise.all([
+      productRepository.find(
+        { ...notDeleted, stock: { $gt: 0, $lte: LOW_STOCK_THRESHOLD } },
+        {
+          limit,
+          sort: { stock: 1 },
+          populate: ['category', 'brand'],
+        },
+      ),
+      productRepository.find(
+        { ...notDeleted, stock: { $lte: 0 } },
+        {
+          limit,
+          sort: { updatedAt: -1 },
+          populate: ['category', 'brand'],
+        },
+      ),
+      productRepository.countDocuments({
+        ...notDeleted,
+        stock: { $gt: 0, $lte: LOW_STOCK_THRESHOLD },
+      }),
+      productRepository.countDocuments({ ...notDeleted, stock: { $lte: 0 } }),
+    ]);
+
+  return {
+    threshold: LOW_STOCK_THRESHOLD,
+    lowStock,
+    outOfStock,
+    lowStockCount,
+    outOfStockCount,
+  };
 };
 
 export const getSalesReport = async () => {

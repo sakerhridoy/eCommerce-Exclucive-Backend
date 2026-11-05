@@ -1,7 +1,4 @@
-export const ROLES = {
-  ADMIN: 'admin',
-  CUSTOMER: 'customer'
-};
+export * from './rbac.js';
 
 export const PRODUCT_STATUS = {
   ACTIVE: 'active',
@@ -33,6 +30,12 @@ export const PAYMENT_METHOD = {
 export const DISCOUNT_TYPE = {
   PERCENTAGE: 'percentage',
   FIXED: 'fixed'
+};
+
+export const REVIEW_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
 };
 
 export const NOTIFICATION_TYPE = {

@@ -33,3 +33,17 @@ export const updateProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
   phone: z.string().optional()
 });
+
+export const addressSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+  phone: z.string().optional(),
+  street: z.string().min(1, 'Street is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  zipCode: z.string().min(1, 'Zip code is required'),
+  country: z.string().min(1, 'Country is required'),
+  type: z.enum(['shipping', 'billing', 'both']).optional(),
+  isDefault: z.boolean().optional()
+});
+
+export const updateAddressSchema = addressSchema.partial();

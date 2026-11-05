@@ -5,11 +5,22 @@ export const createBanner = async (data) => {
   return await bannerRepository.create(data);
 };
 
-export const getBanners = async (includeInactive = false) => {
-  if (includeInactive) {
-    return await bannerRepository.find({}, { sort: { createdAt: -1 } });
+export const getBanners = async (includeInactive = false, filter = {}) => {
+  const query = { ...filter };
+
+  if (!includeInactive) {
+    query.active = true;
   }
-  return await bannerRepository.findAllActive();
+
+  return await bannerRepository.find(query, {
+    sort: { order: 1, createdAt: -1 },
+  });
+};
+
+export const getAllBannersAdmin = async (filter = {}) => {
+  return await bannerRepository.find(filter, {
+    sort: { order: 1, createdAt: -1 },
+  });
 };
 
 export const getBannerById = async (id) => {
@@ -21,7 +32,9 @@ export const getBannerById = async (id) => {
 };
 
 export const updateBanner = async (id, data) => {
-  const banner = await bannerRepository.findByIdAndUpdate(id, data);
+  const banner = await bannerRepository.findByIdAndUpdate(id, data, {
+    new: true,
+  });
   if (!banner) {
     throw new AppError('Banner not found', 404);
   }
